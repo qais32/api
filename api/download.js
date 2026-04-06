@@ -2,8 +2,8 @@ const axios = require('axios');
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -13,11 +13,11 @@ export default async function handler(req, res) {
     if (!url) return res.status(400).json({ error: "URL missing" });
 
     try {
-        // Cobalt API is best for YouTube
-        const response = await axios.post('https://api.cobalt.tools/api/json', {
+        // Naya Endpoint: Ab 'api/json' nahi use hota
+        const response = await axios.post('https://api.cobalt.tools/', {
             url: url,
-            vQuality: '720', // Best for speed and stability
-            vCodec: 'h264'
+            videoQuality: '720',
+            filenameStyle: 'basic'
         }, {
             headers: {
                 'Accept': 'application/json',
@@ -25,8 +25,15 @@ export default async function handler(req, res) {
             }
         });
 
+        // Nayi API ka response format thora mukhtalif ho sakta hai
         return res.status(200).json(response.data);
+
     } catch (error) {
-        return res.status(500).json({ error: "YouTube fetch failed", details: error.message });
+        // Agar main API fail ho to error details bhejien
+        const errorData = error.response ? error.response.data : error.message;
+        return res.status(500).json({ 
+            error: "Cobalt API v11 Error", 
+            details: errorData 
+        });
     }
 }

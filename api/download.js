@@ -1,42 +1,34 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-    // CORS Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle Options request
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
-
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: "Method not allowed" });
-    }
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { url } = req.body;
-    if (!url) {
-        return res.status(400).json({ error: "URL is required" });
-    }
+    if (!url) return res.status(400).json({ error: "URL missing" });
 
     try {
+        // YouTube ke liye Direct fix
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
+            const ytRes = await axios.get(`https://api.vevioz.com/api/button/videos/${videoId}`);
+            // Note: Ye ek public API hai jo direct download button return karti hai
+            return res.status(200).json({ url: `https://api.vevioz.com/api/button/videos/${videoId}` });
+        } 
+        
+        // Baki sab ke liye (Pinterest, TikTok)
         const response = await axios.post('https://api.cobalt.tools/', {
             url: url,
             videoQuality: '720'
         }, {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
         });
 
         return res.status(200).json(response.data);
     } catch (error) {
-        return res.status(500).json({ 
-            error: "Fetch failed", 
-            details: error.response ? error.response.data : error.message 
-        });
+        return res.status(500).json({ error: "Download failed", details: error.message });
     }
 };

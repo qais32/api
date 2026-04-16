@@ -6,36 +6,48 @@ import ytdl from "@distube/ytdl-core";
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Spotify → title extract
-async function getSpotifyTrack(url) {
+// 🎧 Extract Spotify data properly
+async function getSpotifyData(url) {
   try {
     const res = await axios.get(`https://open.spotify.com/oembed?url=${url}`);
-    return res.data.title;
-  } catch {
+    let title = res.data.title || "";
+
+    // Clean title (remove " - song by artist")
+    title = title.replace(" - song by", "").trim();
+
+    return title;
+  } catch (err) {
     return null;
   }
 }
 
-// YouTube search
+// 🔍 Better YouTube search
 async function searchYouTube(query) {
   const result = await ytSearch(query);
-  return result.videos.length > 0 ? result.videos[0] : null;
+
+  // better filtering
+  const video = result.videos.find(v =>
+    v.title.toLowerCase().includes(query.split(" ")[0].toLowerCase())
+  );
+
+  return video || result.videos[0] || null;
 }
 
-// MAIN API
+// 🎵 API
 app.get("/download", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.send("No URL");
 
   try {
-    const track = await getSpotifyTrack(url);
+    const track = await getSpotifyData(url);
     if (!track) return res.send("Invalid Spotify link");
 
     const video = await searchYouTube(track);
-    if (!video) return res.send("No match");
+    if (!video) return res.send("No match found");
 
     const stream = ytdl(video.url, {
       filter: "audioonly",
+      quality: "highestaudio",
       requestOptions: {
         headers: {
           "User-Agent": "Mozilla/5.0",

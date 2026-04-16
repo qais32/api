@@ -1,7 +1,7 @@
 import express from "express";
 import axios from "axios";
 import ytSearch from "yt-search";
-import ytdl from "ytdl-core";
+import ytdl from "@distube/ytdl-core";
 
 const app = express();
 app.use(express.json());

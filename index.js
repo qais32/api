@@ -4,56 +4,57 @@ import ytSearch from "yt-search";
 import ytdl from "@distube/ytdl-core";
 
 const app = express();
-app.use(express.json());
+const PORT = process.env.PORT || 8080;
 
-const PORT = process.env.PORT || 3000;
-
-// 🎧 Extract Spotify track info
+// Spotify → title extract
 async function getSpotifyTrack(url) {
   try {
-    const oembed = await axios.get(`https://open.spotify.com/oembed?url=${url}`);
-    const title = oembed.data.title;
-
-    // Example: "Song Name - Artist"
-    return title;
-  } catch (err) {
+    const res = await axios.get(`https://open.spotify.com/oembed?url=${url}`);
+    return res.data.title;
+  } catch {
     return null;
   }
 }
 
-// 🔍 Search on YouTube
+// YouTube search
 async function searchYouTube(query) {
-  const res = await ytSearch(query);
-  return res.videos.length > 0 ? res.videos[0] : null;
+  const result = await ytSearch(query);
+  return result.videos.length > 0 ? result.videos[0] : null;
 }
 
-// 🎵 API route
+// MAIN API
 app.get("/download", async (req, res) => {
   const { url } = req.query;
-
-  if (!url) return res.json({ error: "No URL provided" });
+  if (!url) return res.send("No URL");
 
   try {
     const track = await getSpotifyTrack(url);
-    if (!track) return res.json({ error: "Invalid Spotify link" });
+    if (!track) return res.send("Invalid Spotify link");
 
     const video = await searchYouTube(track);
-    if (!video) return res.json({ error: "No match found" });
+    if (!video) return res.send("No match");
 
-    const audioStream = ytdl(video.url, {
-      filter: "audioonly"
+    const stream = ytdl(video.url, {
+      filter: "audioonly",
+      requestOptions: {
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          "Accept-Language": "en-US,en;q=0.9"
+        }
+      }
     });
 
     res.header("Content-Disposition", `attachment; filename="${track}.mp3"`);
     res.header("Content-Type", "audio/mpeg");
 
-    audioStream.pipe(res);
+    stream.pipe(res);
 
   } catch (err) {
-    res.json({ error: "Server error" });
+    console.log(err);
+    res.send("Error");
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("Server running on port " + PORT);
 });
